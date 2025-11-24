@@ -1,3 +1,7 @@
+# AREA repository .gitignore
+# Generated based on README (Spring Boot, Vue/Vite, Flutter, Docker, Jenkins, Sonar)
+
+# OS
 .DS_Store
 Thumbs.db
 
