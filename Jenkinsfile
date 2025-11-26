@@ -108,6 +108,12 @@ def syncService(Map args) {
 	String branch = args.targetBranch
 	String normalizedDir = serviceDir.startsWith('./') ? serviceDir.substring(2) : serviceDir
 	String commitMessage = "Sync ${label} from monorepo build #${env.BUILD_NUMBER ?: 'local'}"
+	String pushUser = env.GIT_PUSH_USERNAME ?: ''
+	String pushToken = env.GIT_PUSH_TOKEN ?: ''
+	String repoWithCreds = repoUrl
+	if (pushUser && pushToken) {
+		repoWithCreds = repoUrl.replaceFirst('https://', "https://${pushUser}:${pushToken}@")
+	}
 
 	if (!fileExists(normalizedDir)) {
 		error "Directory '${normalizedDir}' not found for service '${label}'."
@@ -120,10 +126,11 @@ def syncService(Map args) {
 			"SERVICE_LABEL=${label}",
 			"SERVICE_DIR=${normalizedDir}",
 			"SERVICE_REPO=${repoUrl}",
+			"SERVICE_REPO_AUTH=${repoWithCreds}",
 			"SERVICE_BRANCH=${branch}",
 			"SERVICE_COMMIT=${commitMessage}",
-			"PUSH_USERNAME=${env.GIT_PUSH_USERNAME ?: ''}",
-			"PUSH_TOKEN=${env.GIT_PUSH_TOKEN ?: ''}"
+			"PUSH_USERNAME=${pushUser}",
+			"PUSH_TOKEN=${pushToken}"
 		]) {
 			sh '''#!/bin/bash
 			set -euo pipefail
@@ -145,11 +152,7 @@ def syncService(Map args) {
 			if git remote | grep -q '^origin$'; then
 				git remote remove origin
 			fi
-			auth_repo="$SERVICE_REPO"
-			if [ -n "$PUSH_USERNAME" ] && [ -n "$PUSH_TOKEN" ]; then
-				auth_repo="${SERVICE_REPO/https:\/\//https://$PUSH_USERNAME:$PUSH_TOKEN@}"
-			fi
-			git remote add origin "$auth_repo"
+			git remote add origin "$SERVICE_REPO_AUTH"
 			git checkout -B "$SERVICE_BRANCH"
 			git add -A
 			if git diff --cached --quiet; then
