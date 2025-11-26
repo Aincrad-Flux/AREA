@@ -46,6 +46,12 @@ class NodeTemplate {
   final String description;
 }
 
+class NodeTemplateChoice {
+  const NodeTemplateChoice({required this.type, required this.template});
+  final NodeType type;
+  final NodeTemplate template;
+}
+
 extension FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
 }
