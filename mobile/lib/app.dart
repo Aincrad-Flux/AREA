@@ -20,6 +20,11 @@ class AreaApp extends StatelessWidget {
         seedColor: AppPalette.accent,
         brightness: Brightness.light,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        iconTheme: MaterialStateProperty.all(
+          const IconThemeData(color: AppPalette.accent),
+        ),
+      ),
       textTheme: Theme.of(context).textTheme.apply(
             displayColor: AppPalette.dark,
             bodyColor: AppPalette.dark,
