@@ -88,6 +88,19 @@ pipeline {
 				}
 			}
 		}
+
+		stage('Comment') {
+			steps {
+				script {
+					if (env.CHANGE_ID) {
+						def date = sh(returnStdout: true, script: 'date -u').trim()
+						pullRequest.comment("Split pipeline build ${env.BUILD_ID} ran at ${date}. Server, Web, and Mobile outputs were synced to their dedicated repositories if changes were detected.")
+					} else {
+						echo 'No pull request detected; skipping comment.'
+					}
+				}
+			}
+		}
 	}
 
 	post {
