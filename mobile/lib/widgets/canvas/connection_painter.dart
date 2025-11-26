@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../constants/palette.dart';
+import '../../constants/pipeline_layout.dart';
 import '../../models/models.dart';
 
 class ConnectionPainter extends CustomPainter {
-  ConnectionPainter({required this.nodes, required this.connections});
+  ConnectionPainter({required this.nodes, required this.connections, required this.canvasOffset});
 
   final List<PipelineNode> nodes;
   final List<NodeConnection> connections;
+  final Offset canvasOffset;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -21,10 +23,16 @@ class ConnectionPainter extends CustomPainter {
       final from = nodes.where((node) => node.id == conn.from).firstOrNull;
       final to = nodes.where((node) => node.id == conn.to).firstOrNull;
       if (from == null || to == null) continue;
-      final start = Offset(from.position.dx + 210, from.position.dy + 70);
-      final end = Offset(to.position.dx, to.position.dy + 70);
-      final control1 = Offset((start.dx + end.dx) / 2, start.dy);
-      final control2 = Offset((start.dx + end.dx) / 2, end.dy);
+      final start = Offset(
+        from.position.dx + PipelineLayout.nodeWidth / 2,
+        from.position.dy + PipelineLayout.nodeHeight,
+      ) + canvasOffset;
+      final end = Offset(
+        to.position.dx + PipelineLayout.nodeWidth / 2,
+        to.position.dy,
+      ) + canvasOffset;
+      final control1 = Offset(start.dx, start.dy + PipelineLayout.connectionCurveInset);
+      final control2 = Offset(end.dx, end.dy - PipelineLayout.connectionCurveInset);
       final path = Path()
         ..moveTo(start.dx, start.dy)
         ..cubicTo(control1.dx, control1.dy, control2.dx, control2.dy, end.dx, end.dy);
@@ -34,7 +42,9 @@ class ConnectionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant ConnectionPainter oldDelegate) {
-    return oldDelegate.nodes != nodes || oldDelegate.connections != connections;
+    return oldDelegate.nodes != nodes ||
+        oldDelegate.connections != connections ||
+        oldDelegate.canvasOffset != canvasOffset;
   }
 }
 
