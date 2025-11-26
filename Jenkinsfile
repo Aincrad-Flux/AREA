@@ -12,7 +12,7 @@ pipeline {
 		SERVER_REPO_URL = 'git@github.com:Aincrad-Flux/AREA-Server.git'
 		WEB_REPO_URL = 'git@github.com:Aincrad-Flux/AREA-Web.git'
 		MOBILE_REPO_URL = 'git@github.com:Aincrad-Flux/AREA-Mobile.git'
-		SSH_CREDENTIALS_ID = 'area-shared-deploy'
+		SSH_CREDENTIALS_ID = 'github-https-tokens'
 	}
 
 	stages {
@@ -79,12 +79,10 @@ pipeline {
 	}
 }
 
-	// Uses the originating multibranch name, defaulting to main for manual runs.
-	def resolveTargetBranch() {
-		return env.BRANCH_NAME?.trim() ? env.BRANCH_NAME : 'main'
-	}
+def resolveTargetBranch() {
+	return env.BRANCH_NAME?.trim() ? env.BRANCH_NAME : 'main'
+}
 
-// Copies a service folder into a temporary repo and force-pushes it to the provided remote.
 def syncService(Map args) {
 	String label = args.serviceLabel
 	String serviceDir = args.serviceDir
@@ -113,8 +111,8 @@ def syncService(Map args) {
 		sh """#!/bin/bash
 		set -euo pipefail
 		git init
-		git config user.name "${GIT_AUTHOR_NAME}"
-		git config user.email "${GIT_AUTHOR_EMAIL}"
+		git config user.name "${env.GIT_AUTHOR_NAME}"
+		git config user.email "${env.GIT_AUTHOR_EMAIL}"
 		if git remote | grep -q '^origin$'; then
 			git remote remove origin
 		fi
@@ -125,7 +123,7 @@ def syncService(Map args) {
 			echo "No changes detected for ${label}; skipping push."
 			exit 0
 		fi
-		git commit -m "Sync ${label} from monorepo build #${BUILD_NUMBER}"
+		git commit -m "Sync ${label} from monorepo build #${env.BUILD_NUMBER ?: 'local'}"
 		git push --force origin "${branch}"
 		"""
 	}
