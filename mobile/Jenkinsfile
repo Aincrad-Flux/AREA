@@ -9,18 +9,4 @@ node {
             sh "${scannerHome}/bin/sonar-scanner"
         }
     }
-
-    stage('Comment') {
-		steps {
-			script {
-				if (env.CHANGE_ID) {
-					def date = sh(returnStdout: true, script: 'date -u').trim()
-					pullRequest.comment("SonarQube Analysis completed at ${date}.")
-				} else {
-					echo 'No pull request detected; skipping comment.'
-				}
-			}
-		}
-	}
-
 }
