@@ -59,6 +59,7 @@
 .help { position:absolute; bottom:1rem; left:1rem; font-size:.6rem; background:rgba(0,0,0,.5); color:rgba(255,255,255,.6); padding:.5rem .75rem; border-radius:10px; }
 /* Dropdown styles */
 .action-dropdown { position:absolute; top:54px; left:0; background:#fff; border-radius:14px; box-shadow:0 12px 32px -10px rgba(0,0,0,.45); width:300px; padding:.4rem 0; z-index:60; }
+.reaction-dropdown { position:absolute; top:54px; background:#fff; border-radius:14px; box-shadow:0 12px 32px -10px rgba(0,0,0,.45); width:300px; padding:.4rem 0; z-index:60; }
 .action-list { list-style:none; margin:0; padding:0; max-height:260px; overflow:auto; }
 .action-item { width:100%; display:flex; align-items:center; justify-content:space-between; gap:.75rem; background:transparent; border:none; padding:.55rem .85rem; text-align:left; cursor:pointer; font-size:.7rem; }
 .action-item:hover, .action-item:focus { background:#f6f7f9; outline:none; }
@@ -77,6 +78,11 @@
     border:1px solid rgba(255,255,255,.08);
     pointer-events:none;
     overflow:hidden;
+}
+.selected-reactions {
+  position:absolute;
+  inset:1rem;
+  pointer-events:none;
 }
 .action-card {
     position:absolute;
@@ -140,3 +146,31 @@
     margin-top:0.25rem;
     color:#c9c1b1;
 }
+.reaction-card {
+  position:absolute;
+  pointer-events:auto;
+  display:flex;
+  flex-direction:column;
+  width:220px;
+  background:#fff;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:14px;
+  box-shadow:0 12px 30px -12px rgba(0,0,0,.6);
+  cursor:move;
+}
+.reaction-card__header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0.45rem 0.75rem;
+  border-radius:14px 14px 0 0;
+  color:#fff;
+}
+.reaction-card__header-content { display:flex; align-items:center; gap:0.45rem; }
+.reaction-card__icon { width:24px; height:24px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.2); }
+.reaction-card__service { font-weight:600; font-size:0.75rem; color:#fff; }
+.reaction-card__close { background:transparent; border:none; padding:0.25rem; border-radius:8px; cursor:pointer; transition:background 0.15s ease; }
+.reaction-card__close:hover { background:rgba(255,255,255,0.25); }
+.reaction-card__body { background:#fff; border-radius:0 0 14px 14px; padding:0.85rem 1rem; }
+.reaction-card__title { font-size:0.85rem; font-weight:600; color:#1b2632; }
+.reaction-card__desc { font-size:0.7rem; margin-top:0.25rem; color:#c9c1b1; }

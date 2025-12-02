@@ -26,7 +26,22 @@
             </li>
           </ul>
         </div>
-        <button class="mini-btn reaction" @click="openPicker('reaction', 450, 200)"><PlusIcon size="16" /> Reaction</button>
+        <button class="mini-btn reaction" @click="toggleReactionMenu" aria-haspopup="true" :aria-expanded="showReactionMenu ? 'true' : 'false'"><PlusIcon size="16" /> Reaction</button>
+        <div v-if="showReactionMenu" class="reaction-dropdown" role="menu">
+          <ul class="action-list">
+            <li v-for="(item,i) in reactionsList" :key="i" role="none">
+              <button class="action-item" role="menuitem" @click="selectReaction(item)">
+                <span class="ai-left">
+                  <span class="svc-icon" :style="{ background: services[item.service].color }">
+                    <component :is="services[item.service]?.icon || defaultServiceIcon" size="14" color="white" />
+                  </span>
+                  <span class="ai-service">{{ services[item.service].name }}</span>
+                </span>
+                <span class="ai-name">{{ item.name }}</span>
+              </button>
+            </li>
+          </ul>
+        </div>
         <button class="save-btn"><PlayIcon size="16" /> Save & Activate</button>
       </div>
     </header>
@@ -47,11 +62,9 @@
       @click="handleCanvasClick"
       @dblclick="handleCanvasDouble"
     >
-      <div
-        class="selected-actions"
-      >
+      <div class="selected-actions">
         <div
-          v-for="(n,i) in orderedActionNodes"
+          v-for="n in orderedActionNodes"
           :key="n.id"
           class="action-card"
           :style="cardStyle(n.id)"
@@ -74,33 +87,30 @@
           </div>
         </div>
       </div>
-      <GridBackground />
-      <ConnectionLine
-        v-for="(conn,i) in connections"
-        :key="i"
-        :from="conn.from"
-        :to="conn.to"
-        :nodes="nodes"
-      />
-      <Node
-        v-for="n in nodes"
-        :key="n.id"
-        :node="n"
-        :isSelected="selectedNode === n.id"
-        :connectingFrom="connectingFrom"
-        @dragNode="handleDrag"
-        @deleteNode="deleteNode"
-        @selectNode="selectNode"
-        @startConnect="startConnect"
-        @endConnect="endConnect"
-      />
-      <ServicePicker
-        v-if="picker"
-        :type="picker.type"
-        :position="{ x: picker.x, y: picker.y }"
-        @close="picker=null"
-        @select="addNode"
-      />
+      <div class="selected-reactions">
+        <div
+          v-for="n in orderedReactionNodes"
+          :key="n.id"
+          class="reaction-card"
+          :style="reactionCardStyle(n.id)"
+          @mousedown.stop="startReactionCardDrag(n.id, $event)"
+          @click.stop="selectNode(n.id)"
+        >
+          <div class="reaction-card__header" :style="{ background: services[n.service].color }">
+            <div class="reaction-card__header-content">
+              <div class="reaction-card__icon">
+                <component :is="services[n.service]?.icon || defaultServiceIcon" size="14" color="#fff" />
+              </div>
+              <span class="reaction-card__service">{{ services[n.service].name }}</span>
+            </div>
+            <button class="no-drag reaction-card__close" @click.stop="deleteNode(n.id)"><XIcon size="12" color="white" /></button>
+          </div>
+          <div class="reaction-card__body">
+            <div class="reaction-card__title">{{ n.actionName }}</div>
+            <div class="reaction-card__desc">{{ n.desc }}</div>
+          </div>
+        </div>
+      </div>
       <div class="help">Double-click to add node • Drag nodes to move • Click connectors to link</div>
     </div>
   </div>
@@ -129,12 +139,13 @@ const actionsList = [
   { service: 'github', name: 'Pull Request', desc: 'Triggers on new PRs' }
 ]
 const reactionsList = [
-  { service: 'discord', name: 'Send Message', desc: 'Posts a message to a channel' },
+  { service: 'discord', name: 'Send Message', desc: 'Posts to #alerts' },
   { service: 'gmail', name: 'Send Email', desc: 'Sends an email' },
   { service: 'dropbox', name: 'Upload File', desc: 'Uploads a file to Dropbox' },
   { service: 'outlook', name: 'Create Event', desc: 'Creates a calendar event' },
   { service: 'github', name: 'Create Issue', desc: 'Creates a new issue' }
 ]
+const REACTION_CANVAS_ORIGIN = { x: 460, y: 220 }
 
 const areaName = ref('New Automation')
 const titleFocused = ref(false)
@@ -145,6 +156,9 @@ const nodes = ref([
 // Maintain ordering for action nodes (cards)
 const actionOrder = ref(nodes.value.filter(n => n.type==='action').map(n => n.id))
 const orderedActionNodes = computed(() => actionOrder.value.map(id => nodes.value.find(n => n.id === id)).filter(Boolean))
+const reactionOrder = ref(nodes.value.filter(n => n.type==='reaction').map(n => n.id))
+const orderedReactionNodes = computed(() => reactionOrder.value.map(id => nodes.value.find(n => n.id === id)).filter(Boolean))
+
 const draggingActionIndex = ref(null)
 function onActionDragStart(i){ draggingActionIndex.value = i }
 function onActionDrop(i){
@@ -161,8 +175,17 @@ function onActionDrop(i){
 
 // Dropdown state
 const showActionMenu = ref(false)
-function toggleActionMenu() { showActionMenu.value = !showActionMenu.value }
+const showReactionMenu = ref(false)
+function toggleActionMenu() {
+  showActionMenu.value = !showActionMenu.value
+  if (showActionMenu.value) showReactionMenu.value = false
+}
+function toggleReactionMenu() {
+  showReactionMenu.value = !showReactionMenu.value
+  if (showReactionMenu.value) showActionMenu.value = false
+}
 function closeActionMenu() { showActionMenu.value = false }
+function closeReactionMenu() { showReactionMenu.value = false }
 function selectAction(item) {
   const count = nodes.value.filter(n => n.type === 'action').length
   const baseX = 100 + (count * 40)
@@ -173,12 +196,33 @@ function selectAction(item) {
   setInitialCardPosition(id)
   closeActionMenu()
 }
+function selectReaction(item) {
+  const id = Date.now()
+  nodes.value.push({
+    id,
+    type: 'reaction',
+    service: item.service,
+    actionName: item.name,
+    desc: item.desc,
+    x: REACTION_CANVAS_ORIGIN.x,
+    y: REACTION_CANVAS_ORIGIN.y
+  })
+  reactionOrder.value.push(id)
+  setInitialReactionCardPosition(id)
+  closeReactionMenu()
+}
 function handleOutside(e) {
-  if (!showActionMenu.value) return
-  const menuEl = document.querySelector('.action-dropdown')
-  const btnEl = document.querySelector('.mini-btn.action')
-  if (menuEl && (menuEl.contains(e.target) || (btnEl && btnEl.contains(e.target)))) return
-  closeActionMenu()
+  if (!showActionMenu.value && !showReactionMenu.value) return
+  const actionMenuEl = document.querySelector('.action-dropdown')
+  const actionBtnEl = document.querySelector('.mini-btn.action')
+  const reactionMenuEl = document.querySelector('.reaction-dropdown')
+  const reactionBtnEl = document.querySelector('.mini-btn.reaction')
+  if (showActionMenu.value && !(actionMenuEl?.contains(e.target) || actionBtnEl?.contains(e.target))) {
+    closeActionMenu()
+  }
+  if (showReactionMenu.value && !(reactionMenuEl?.contains(e.target) || reactionBtnEl?.contains(e.target))) {
+    closeReactionMenu()
+  }
 }
 onMounted(() => window.addEventListener('click', handleOutside))
 onBeforeUnmount(() => window.removeEventListener('click', handleOutside))
@@ -201,6 +245,9 @@ function addNode(item) {
   if (picker.value.type === 'action') {
     actionOrder.value.push(id)
     setInitialCardPosition(id)
+  } else if (picker.value.type === 'reaction') {
+    reactionOrder.value.push(id)
+    setInitialReactionCardPosition(id)
   }
   picker.value = null
 }
@@ -212,6 +259,10 @@ function deleteNode(id) {
     actionOrder.value = actionOrder.value.filter(aid => aid !== id)
     const { [id]: _, ...rest } = cardPositions.value
     cardPositions.value = rest
+  } else if (target && target.type==='reaction') {
+    reactionOrder.value = reactionOrder.value.filter(rid => rid !== id)
+    const { [id]: __, ...restReactions } = reactionCardPositions.value
+    reactionCardPositions.value = restReactions
   }
   if (selectedNode.value === id) selectedNode.value = null
 }
@@ -248,7 +299,7 @@ function handleDrag(id, startEvent) {
 const cardPositions = ref({})
 const draggingCardId = ref(null)
 const cardDragOffset = ref({ x: 0, y: 0 })
-function getDefaultCardPosition(id) {
+function getDefaultCardPosition() {
   return { x: 32, y: 24 }
 }
 function ensureCardPosition(id) {
@@ -280,6 +331,44 @@ function startCardDrag(id, event) {
   window.addEventListener('mouseup', onUp)
 }
 
+const reactionCardPositions = ref({})
+const draggingReactionCardId = ref(null)
+const reactionCardDragOffset = ref({ x: 0, y: 0 })
+function getDefaultReactionCardPosition() {
+  return { x: 32, y: 220 }
+}
+function ensureReactionCardPosition(id) {
+  if (!id || reactionCardPositions.value[id]) return
+  reactionCardPositions.value = { ...reactionCardPositions.value, [id]: getDefaultReactionCardPosition(id) }
+}
+watch(reactionOrder, ids => ids.forEach(ensureReactionCardPosition), { immediate: true })
+function reactionCardStyle(id) {
+  const pos = reactionCardPositions.value[id] || getDefaultReactionCardPosition(id)
+  return { left: `${pos.x}px`, top: `${pos.y}px` }
+}
+function setInitialReactionCardPosition(id) {
+  if (reactionCardPositions.value[id]) return
+  reactionCardPositions.value = { ...reactionCardPositions.value, [id]: getDefaultReactionCardPosition(id) }
+}
+function startReactionCardDrag(id, event) {
+  ensureReactionCardPosition(id)
+  const current = reactionCardPositions.value[id] || getDefaultReactionCardPosition(id)
+  reactionCardDragOffset.value = { x: event.clientX - current.x, y: event.clientY - current.y }
+  draggingReactionCardId.value = id
+  function onMove(ev) {
+    if (!draggingReactionCardId.value) return
+    const x = ev.clientX - reactionCardDragOffset.value.x
+    const y = ev.clientY - reactionCardDragOffset.value.y
+    reactionCardPositions.value = { ...reactionCardPositions.value, [id]: { x, y } }
+  }
+  function onUp() {
+    draggingReactionCardId.value = null
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+  }
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+}
 </script>
 
-<style scoped src="../assets/PipelineEditor.css"></style>
+<style scoped src="@/assets/PipelineEditor.css"></style>
