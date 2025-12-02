@@ -20,19 +20,4 @@ import StatCard from './StatCard.vue'
 const { cards } = defineProps({ cards: { type: Array, required: true } })
 </script>
 
-<style scoped>
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
-  gap: 1rem;
-}
-@media (min-width: 1200px) {
-  .dashboard-grid { gap: 1.25rem; }
-}
-.visually-hidden {
-  position: absolute !important;
-  height: 1px; width: 1px;
-  overflow: hidden; clip: rect(1px,1px,1px,1px);
-  white-space: nowrap; border: 0; padding: 0; margin: -1px;
-}
-</style>
+<style scoped src="../assets/DashboardGrid.css"></style>

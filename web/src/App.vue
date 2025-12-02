@@ -6,7 +6,7 @@ import ServicesView from './components/ServicesView.vue'
 import ProfileView from './components/ProfileView.vue'
 import { ref, computed } from 'vue'
 
-const currentPage = ref('editor')
+const currentPage = ref('dashboard')
 function openEditor() { currentPage.value = 'editor' }
 
 const currentPageComponent = computed(() => {

@@ -80,3 +80,14 @@ body { background: var(--color-bg); color: var(--color-text); transition: backgr
 
 /* Transition for themeable elements */
 .theme-transition, .sidebar, .node-shell, .area-card, .service-card { transition: background-color .3s, color .3s, border-color .3s; }
+
+/* Area meta global coloring */
+.area-meta .meta-nodes { color: var(--color-primary-alt); }
+.area-meta .meta-status { color: var(--color-primary); font-weight:500; }
+.area-meta .meta-status.inactive { color: var(--color-danger); }
+.area-meta .meta-placeholder { color: var(--color-muted); font-style: italic; opacity:.9; }
+
+[data-theme='dark'] .area-meta .meta-nodes { color: var(--color-primary); }
+[data-theme='dark'] .area-meta .meta-status { color: var(--color-success); }
+[data-theme='dark'] .area-meta .meta-status.inactive { color: var(--color-danger); }
+[data-theme='dark'] .area-meta .meta-placeholder { color: var(--color-muted); opacity:.75; }
