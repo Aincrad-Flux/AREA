@@ -5,10 +5,10 @@
         <h1>My Automations</h1>
         <p>Manage your AREA workflows</p>
       </div>
-      <button class="new-area" @click="$emit('openEditor')"><PlusIcon size="20" /> Create New Area</button>
+      <button class="new-area" @click="openEditor"><PlusIcon size="20" /> Create New Area</button>
     </div>
     <div class="areas-grid">
-      <div v-for="area in areas" :key="area.id" class="area-card" @click="$emit('openEditor')">
+      <div v-for="area in areas" :key="area.id" class="area-card" @click="openEditor">
         <div class="area-head">
           <h3>{{ area.name }}</h3>
           <div class="status-dot" :class="{ active: area.active }"></div>
@@ -20,6 +20,11 @@
 </template>
 <script setup>
 import { PlusIcon } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+const router = useRouter()
+function openEditor() {
+  router.push({ name: 'editor' })
+}
 const areas = [
   { id: 1, name: 'GitHub → Discord', nodes: 2, active: true },
   { id: 2, name: 'Daily Email Report', nodes: 3, active: true },

@@ -10,7 +10,7 @@
         :title="item.id"
         class="nav-btn"
         :class="{ active: currentPage === item.id }"
-        @click="$emit('update:currentPage', item.id)"
+        @click="navigate(item.id)"
       >
         <component :is="item.icon" size="20" />
       </button>
@@ -27,8 +27,11 @@
 
 <script setup>
 import { ZapIcon, HomeIcon, SettingsIcon, UserIcon, LogOutIcon } from 'lucide-vue-next'
-import { onMounted, ref } from 'vue'
-const props = defineProps({ currentPage: String })
+import { onMounted, ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+const props = defineProps({ currentPage: [String, Object] })
+const currentPage = computed(() => typeof props.currentPage === 'string' ? props.currentPage : props.currentPage?.value)
+const router = useRouter()
 const accent = '#FFB162'
 const items = [
   { id: 'dashboard', icon: HomeIcon },
@@ -49,6 +52,9 @@ function syncTheme() {
   }
 }
 function toggleTheme() { isDark.value = !isDark.value; syncTheme() }
+function navigate(page) {
+  router.push({ name: page })
+}
 onMounted(() => { syncTheme() })
 </script>
 

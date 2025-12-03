@@ -1,30 +1,21 @@
 <script setup>
+import { useRoute, useRouter } from 'vue-router'
+import { computed } from 'vue'
 import Sidebar from './components/Sidebar.vue'
-import AreasDashboard from './components/AreasDashboard.vue'
-import PipelineEditor from './components/PipelineEditor.vue'
-import ServicesView from './components/ServicesView.vue'
-import ProfileView from './components/ProfileView.vue'
-import { ref, computed } from 'vue'
 
-const currentPage = ref('dashboard')
-function openEditor() { currentPage.value = 'editor' }
-
-const currentPageComponent = computed(() => {
-  switch (currentPage.value) {
-    case 'dashboard': return AreasDashboard
-    case 'editor': return PipelineEditor
-    case 'services': return ServicesView
-    case 'profile': return ProfileView
-    default: return AreasDashboard
-  }
-})
-const pageProps = computed(() => currentPage.value === 'dashboard' ? { openEditor } : {})
+const route = useRoute()
+const router = useRouter()
+const currentPage = computed(() => route.name || 'dashboard')
+function goTo(page){
+  if (route.name !== page) router.push({ name: page })
+}
+function openEditor(){ router.push({ name: 'editor' }) }
 </script>
 
 <template>
-  <Sidebar :currentPage="currentPage" @update:currentPage="val => currentPage = val" />
+  <Sidebar :currentPage="currentPage" @update:currentPage="goTo" />
   <div class="page-shift" :class="currentPage">
-    <component :is="currentPageComponent" v-bind="pageProps" @openEditor="openEditor" />
+    <router-view @openEditor="openEditor" />
   </div>
 </template>
 
