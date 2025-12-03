@@ -79,7 +79,15 @@
               </div>
               <span class="action-card__service">{{ services[n.service].name }}</span>
             </div>
-            <button class="no-drag action-card__close" @click.stop="deleteNode(n.id)"><XIcon size="12" color="white" /></button>
+            <button
+              v-if="pendingDeleteId!==n.id"
+              class="no-drag action-card__close"
+              @click.stop="requestDelete(n.id)"
+            ><XIcon size="12" color="white" /></button>
+            <div v-else class="delete-confirm">
+              <button class="confirm" @click.stop="confirmDelete">Confirm</button>
+              <button class="cancel" @click.stop="cancelDelete">Cancel</button>
+            </div>
           </div>
           <div class="action-card__body">
             <div class="action-card__title">{{ n.actionName }}</div>
@@ -103,7 +111,15 @@
               </div>
               <span class="reaction-card__service">{{ services[n.service].name }}</span>
             </div>
-            <button class="no-drag reaction-card__close" @click.stop="deleteNode(n.id)"><XIcon size="12" color="white" /></button>
+            <button
+              v-if="pendingDeleteId!==n.id"
+              class="no-drag reaction-card__close"
+              @click.stop="requestDelete(n.id)"
+            ><XIcon size="12" color="white" /></button>
+            <div v-else class="delete-confirm">
+              <button class="confirm" @click.stop="confirmDelete">Confirm</button>
+              <button class="cancel" @click.stop="cancelDelete">Cancel</button>
+            </div>
           </div>
           <div class="reaction-card__body">
             <div class="reaction-card__title">{{ n.actionName }}</div>
@@ -153,6 +169,7 @@ const nodes = ref([
   { id: 1, type: 'action', service: 'github', actionName: 'New Issue', desc: 'Triggers on new issues', x: 100, y: 150 },
   { id: 2, type: 'reaction', service: 'discord', actionName: 'Send Message', desc: 'Posts to #alerts', x: 450, y: 150 }
 ])
+const pendingDeleteId = ref(null)
 // Maintain ordering for action nodes (cards)
 const actionOrder = ref(nodes.value.filter(n => n.type==='action').map(n => n.id))
 const orderedActionNodes = computed(() => actionOrder.value.map(id => nodes.value.find(n => n.id === id)).filter(Boolean))
@@ -211,6 +228,18 @@ function selectReaction(item) {
   setInitialReactionCardPosition(id)
   closeReactionMenu()
 }
+function requestDelete(id) {
+  pendingDeleteId.value = id
+}
+function cancelDelete() {
+  pendingDeleteId.value = null
+}
+function confirmDelete() {
+  if (pendingDeleteId.value != null) {
+    deleteNode(pendingDeleteId.value)
+    pendingDeleteId.value = null
+  }
+}
 function handleOutside(e) {
   if (!showActionMenu.value && !showReactionMenu.value) return
   const actionMenuEl = document.querySelector('.action-dropdown')
@@ -264,7 +293,7 @@ function deleteNode(id) {
     const { [id]: __, ...restReactions } = reactionCardPositions.value
     reactionCardPositions.value = restReactions
   }
-  if (selectedNode.value === id) selectedNode.value = null
+  if (pendingDeleteId.value === id) pendingDeleteId.value = null
 }
 function selectNode(id) { selectedNode.value = id }
 function startConnect(id) { connectingFrom.value = id }
