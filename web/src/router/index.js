@@ -7,7 +7,7 @@ import ProfileView from '@/components/ProfileView.vue'
 const routes = [
   { path: '/', redirect: '/dashboard' },
   { path: '/dashboard', component: AreasDashboard, name: 'dashboard' },
-  { path: '/editor', component: PipelineEditor, name: 'editor' },
+  { path: '/editor/:areaId?', component: PipelineEditor, name: 'editor', props: true },
   { path: '/services', component: ServicesView, name: 'services' },
   { path: '/profile', component: ProfileView, name: 'profile' }
 ]
@@ -18,4 +18,3 @@ const router = createRouter({
 })
 
 export default router
-

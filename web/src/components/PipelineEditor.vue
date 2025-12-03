@@ -62,6 +62,7 @@
       @click="handleCanvasClick"
       @dblclick="handleCanvasDouble"
     >
+      <GridBackground />
       <div class="selected-actions">
         <div
           v-for="n in orderedActionNodes"
@@ -127,16 +128,66 @@
           </div>
         </div>
       </div>
+      <ConnectionLine
+        v-for="(conn,i) in connections"
+        :key="`${conn.from}-${conn.to}-${i}`"
+        :from="conn.from"
+        :to="conn.to"
+        :nodes="nodes"
+      />
+      <Node
+        v-for="node in nodes"
+        :key="node.id"
+        :node="node"
+        :isSelected="selectedNode === node.id"
+        :connectingFrom="connectingFrom"
+        @dragNode="handleDrag"
+        @deleteNode="requestDelete"
+        @selectNode="selectNode"
+        @startConnect="startConnect"
+        @endConnect="endConnect"
+      />
       <div class="help">Double-click to add node • Drag nodes to move • Click connectors to link</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, defineComponent, h } from 'vue'
 import { PlusIcon, PlayIcon, XIcon, MailIcon, ClockIcon, GithubIcon, MessageSquareIcon, CloudIcon, CalendarIcon } from 'lucide-vue-next'
 
-// Data lists
+const props = defineProps({ areaId: { type: String, default: null } })
+const storageKey = computed(() => props.areaId ? `area-canvas-${props.areaId}` : 'area-canvas-default')
+
+function loadSnapshot() {
+  const raw = localStorage.getItem(storageKey.value)
+  if (!raw) return null
+  try { return JSON.parse(raw) } catch { return null }
+}
+const snapshot = loadSnapshot()
+function persistSnapshot() {
+  const payload = {
+    areaName: areaName.value,
+    nodes: nodes.value,
+    connections: connections.value,
+    cardPositions: cardPositions.value,
+    reactionCardPositions: reactionCardPositions.value
+  }
+  localStorage.setItem(storageKey.value, JSON.stringify(payload))
+}
+function makeDefaultNodes() {
+  const stamp = Date.now()
+  return [
+    { id: stamp, type: 'action', service: 'github', actionName: 'New Issue', desc: 'Triggers on new issues', x: 100, y: 150 },
+    { id: stamp + 1, type: 'reaction', service: 'discord', actionName: 'Send Message', desc: 'Posts to #alerts', x: 450, y: 150 }
+  ]
+}
+function makeDefaultConnections(nodesList) {
+  const firstAction = nodesList.find(n => n.type === 'action')
+  const firstReaction = nodesList.find(n => n.type === 'reaction')
+  return firstAction && firstReaction ? [{ from: firstAction.id, to: firstReaction.id }] : []
+}
+
 const services = {
   gmail: { name: 'Gmail', color: '#EA4335', icon: MailIcon },
   timer: { name: 'Timer', color: '#4285F4', icon: ClockIcon },
@@ -163,36 +214,23 @@ const reactionsList = [
 ]
 const REACTION_CANVAS_ORIGIN = { x: 460, y: 220 }
 
-const areaName = ref('New Automation')
+const areaName = ref(snapshot?.areaName || (props.areaId ? `Automation #${props.areaId}` : 'New Automation'))
 const titleFocused = ref(false)
-const nodes = ref([
-  { id: 1, type: 'action', service: 'github', actionName: 'New Issue', desc: 'Triggers on new issues', x: 100, y: 150 },
-  { id: 2, type: 'reaction', service: 'discord', actionName: 'Send Message', desc: 'Posts to #alerts', x: 450, y: 150 }
-])
+const nodes = ref(snapshot?.nodes || makeDefaultNodes())
+const connections = ref(snapshot?.connections || makeDefaultConnections(nodes.value))
 const pendingDeleteId = ref(null)
+const selectedNode = ref(null)
+const picker = ref(null)
+const connectingFrom = ref(null)
+const canvasRef = ref(null)
 // Maintain ordering for action nodes (cards)
 const actionOrder = ref(nodes.value.filter(n => n.type==='action').map(n => n.id))
 const orderedActionNodes = computed(() => actionOrder.value.map(id => nodes.value.find(n => n.id === id)).filter(Boolean))
 const reactionOrder = ref(nodes.value.filter(n => n.type==='reaction').map(n => n.id))
 const orderedReactionNodes = computed(() => reactionOrder.value.map(id => nodes.value.find(n => n.id === id)).filter(Boolean))
-
-const draggingActionIndex = ref(null)
-function onActionDragStart(i){ draggingActionIndex.value = i }
-function onActionDrop(i){
-  if (draggingActionIndex.value === null) return
-  const from = draggingActionIndex.value
-  const to = i
-  if (from === to) { draggingActionIndex.value = null; return }
-  const arr = [...actionOrder.value]
-  const [moved] = arr.splice(from,1)
-  arr.splice(to,0,moved)
-  actionOrder.value = arr
-  draggingActionIndex.value = null
-}
-
-// Dropdown state
 const showActionMenu = ref(false)
 const showReactionMenu = ref(false)
+
 function toggleActionMenu() {
   showActionMenu.value = !showActionMenu.value
   if (showActionMenu.value) showReactionMenu.value = false
@@ -257,11 +295,11 @@ onMounted(() => window.addEventListener('click', handleOutside))
 onBeforeUnmount(() => window.removeEventListener('click', handleOutside))
 
 function handleCanvasClick(e) {
-  if (e.target === canvasRef.value || e.target.tagName === 'svg') {
-    selectedNode.value = null
-    connectingFrom.value = null
-  }
-}
+   if (e.target === canvasRef.value || e.target.tagName === 'svg') {
+     selectedNode.value = null
+     connectingFrom.value = null
+   }
+ }
 function handleCanvasDouble(e) {
   if (e.target !== canvasRef.value && e.target.tagName !== 'svg') return
   const rect = canvasRef.value.getBoundingClientRect()
@@ -281,19 +319,20 @@ function addNode(item) {
   picker.value = null
 }
 function deleteNode(id) {
-  const target = nodes.value.find(n=>n.id===id)
-  nodes.value = nodes.value.filter(n => n.id !== id)
-  connections.value = connections.value.filter(c => c.from !== id && c.to !== id)
-  if (target && target.type==='action') {
-    actionOrder.value = actionOrder.value.filter(aid => aid !== id)
-    const { [id]: _, ...rest } = cardPositions.value
-    cardPositions.value = rest
-  } else if (target && target.type==='reaction') {
-    reactionOrder.value = reactionOrder.value.filter(rid => rid !== id)
-    const { [id]: __, ...restReactions } = reactionCardPositions.value
-    reactionCardPositions.value = restReactions
-  }
-  if (pendingDeleteId.value === id) pendingDeleteId.value = null
+   const target = nodes.value.find(n=>n.id===id)
+   nodes.value = nodes.value.filter(n => n.id !== id)
+   connections.value = connections.value.filter(c => c.from !== id && c.to !== id)
+   if (target && target.type==='action') {
+     actionOrder.value = actionOrder.value.filter(aid => aid !== id)
+     const { [id]: _, ...rest } = cardPositions.value
+     cardPositions.value = rest
+   } else if (target && target.type==='reaction') {
+     reactionOrder.value = reactionOrder.value.filter(rid => rid !== id)
+     const { [id]: __, ...restReactions } = reactionCardPositions.value
+     reactionCardPositions.value = restReactions
+   }
+   if (pendingDeleteId.value === id) pendingDeleteId.value = null
+   persistSnapshot()
 }
 function selectNode(id) { selectedNode.value = id }
 function startConnect(id) { connectingFrom.value = id }
@@ -319,13 +358,14 @@ function handleDrag(id, startEvent) {
   function onUp() {
     window.removeEventListener('mousemove', onMove)
     window.removeEventListener('mouseup', onUp)
+    persistSnapshot()
   }
   window.addEventListener('mousemove', onMove)
   window.addEventListener('mouseup', onUp)
 }
 
 // Card positions
-const cardPositions = ref({})
+const cardPositions = ref(snapshot?.cardPositions || {})
 const draggingCardId = ref(null)
 const cardDragOffset = ref({ x: 0, y: 0 })
 function getDefaultCardPosition() {
@@ -355,12 +395,13 @@ function startCardDrag(id, event) {
     draggingCardId.value = null
     window.removeEventListener('mousemove', onMove)
     window.removeEventListener('mouseup', onUp)
+    persistSnapshot()
   }
   window.addEventListener('mousemove', onMove)
   window.addEventListener('mouseup', onUp)
 }
 
-const reactionCardPositions = ref({})
+const reactionCardPositions = ref(snapshot?.reactionCardPositions || {})
 const draggingReactionCardId = ref(null)
 const reactionCardDragOffset = ref({ x: 0, y: 0 })
 function getDefaultReactionCardPosition() {
@@ -394,10 +435,72 @@ function startReactionCardDrag(id, event) {
     draggingReactionCardId.value = null
     window.removeEventListener('mousemove', onMove)
     window.removeEventListener('mouseup', onUp)
+    persistSnapshot()
   }
   window.addEventListener('mousemove', onMove)
   window.addEventListener('mouseup', onUp)
 }
+
+watch([nodes, connections, areaName], persistSnapshot, { deep: true })
+
+const GridBackground = defineComponent({
+  name: 'GridBackground',
+  setup() {
+    return () => h('svg', { class: 'grid-bg', xmlns: 'http://www.w3.org/2000/svg', preserveAspectRatio: 'none' }, [
+      h('defs', [
+        h('pattern', { id: 'canvas-grid', width: 20, height: 20, patternUnits: 'userSpaceOnUse' }, [
+          h('rect', { width: 20, height: 20, fill: 'var(--color-canvas)' }),
+          h('path', { d: 'M 20 0 L 0 0 0 20', fill: 'none', stroke: 'var(--color-canvas-grid)', 'stroke-width': 0.5 })
+        ])
+      ]),
+      h('rect', { width: '100%', height: '100%', fill: 'var(--color-canvas)' }),
+      h('rect', { width: '100%', height: '100%', fill: 'url(#canvas-grid)' })
+    ])
+  }
+})
+
+const ConnectionLine = defineComponent({
+  name: 'ConnectionLine',
+  props: {
+    from: { type: Number, required: true },
+    to: { type: Number, required: true },
+    nodes: { type: Array, required: true }
+  },
+  setup(props) {
+    return () => {
+      const fromNode = props.nodes.find(n => n.id === props.from)
+      const toNode = props.nodes.find(n => n.id === props.to)
+      if (!fromNode || !toNode) return null
+      const x1 = fromNode.x + 220
+      const y1 = fromNode.y + 50
+      const x2 = toNode.x
+      const y2 = toNode.y + 50
+      const midX = (x1 + x2) / 2
+      const d = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`
+      return h('svg', { class: 'conn-svg' }, [
+        h('path', { d, stroke: 'var(--color-accent)', 'stroke-width': 3, fill: 'none' }),
+        h('circle', { cx: x2, cy: y2, r: 6, fill: 'var(--color-accent)' })
+      ])
+    }
+  }
+})
+
+const Node = defineComponent({
+  name: 'CanvasNode',
+  props: {
+    node: { type: Object, required: true },
+    isSelected: { type: Boolean, default: false },
+    connectingFrom: { type: Number, default: null }
+  },
+  emits: ['dragNode', 'deleteNode', 'selectNode', 'startConnect', 'endConnect'],
+  setup(props, { emit }) {
+    const handleMouseDown = () => {
+      if (props.connectingFrom != null) emit('endConnect', props.node.id)
+      else emit('startConnect', props.node.id)
+    }
+    return { handleMouseDown }
+  }
+})
 </script>
 
 <style scoped src="@/assets/PipelineEditor.css"></style>

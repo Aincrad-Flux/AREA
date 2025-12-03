@@ -6,14 +6,17 @@ import Sidebar from './components/Sidebar.vue'
 const route = useRoute()
 const router = useRouter()
 const currentPage = computed(() => route.name || 'dashboard')
-function goTo(page){
-  if (route.name !== page) router.push({ name: page })
+function goTo(page, params){
+  if (route.name === page && JSON.stringify(route.params) === JSON.stringify(params || {})) return
+  router.push(params ? { name: page, params } : { name: page })
 }
-function openEditor(){ router.push({ name: 'editor' }) }
+function openEditor(areaId){
+  goTo('editor', areaId ? { areaId } : undefined)
+}
 </script>
 
 <template>
-  <Sidebar :currentPage="currentPage" @update:currentPage="goTo" />
+  <Sidebar :currentPage="currentPage" @navigate="goTo" />
   <div class="page-shift" :class="currentPage">
     <router-view @openEditor="openEditor" />
   </div>
